@@ -120,12 +120,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "left", "shift+tab":
 			m.PrevList()
-			m.CurrentList().SetFilter(m.filter)
-			m.CurrentList().Filter()
+			m.CurrentList().SetFilter(m.filter).Filter()
 		case "right", "tab":
 			m.NextList()
-			m.CurrentList().SetFilter(m.filter)
-			m.CurrentList().Filter()
+			m.CurrentList().SetFilter(m.filter).Filter()
 		case "down":
 			m.CurrentList().Next()
 		case "up":
@@ -140,14 +138,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace", "delete":
 			end := utils.Max(0, len(m.filter)-1)
 			m.filter = m.filter[0:end]
-			m.CurrentList().SetFilter(m.filter)
-			m.CurrentList().Filter()
+			m.CurrentList().SetFilter(m.filter).Filter()
 
 		default:
 			m.filter += msg.String()
-			m.CurrentList().SetSelected(0)
-			m.CurrentList().SetFilter(m.filter)
-			m.CurrentList().Filter()
+			m.CurrentList().
+				SetSelected(0).
+				SetFilter(m.filter).
+				Filter()
 		}
 	}
 

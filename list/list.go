@@ -27,18 +27,21 @@ func (l *List) Title() string {
 	return l.title
 }
 
-func (l *List) SetTitle(title string) {
+func (l *List) SetTitle(title string) *List {
 	l.title = title
+	return l
 }
 
-func (l *List) SetItems(items []string) {
+func (l *List) SetItems(items []string) *List {
 	l.items = items
 	l.Filter()
+	return l
 }
 
-func (l *List) SetFilter(filter string) {
+func (l *List) SetFilter(filter string) *List {
 	l.filter = filter
 	l.Filter()
+	return l
 }
 
 func (l *List) FilteredItemsCount() int {
@@ -51,21 +54,24 @@ func (l *List) Selected() string {
 	return l.filteredItems[l.selected]
 }
 
-func (l *List) SetSelected(i int) {
+func (l *List) SetSelected(i int) *List {
 	if i >= 0 && i < len(l.filteredItems) {
 		l.selected = i
 	}
+	return l
 }
 
-func (l *List) SetActiveDot(a string) {
+func (l *List) SetActiveDot(a string) *List {
 	l.activeDot = a
+	return l
 }
 
-func (l *List) SetHeight(h int) {
+func (l *List) SetHeight(h int) *List {
 	l.height = h
+	return l
 }
 
-func (l *List) Next() {
+func (l *List) Next() *List {
 	if l.selected == len(l.filteredItems)-1 {
 		l.selected = 0
 		l.first = 0
@@ -75,9 +81,10 @@ func (l *List) Next() {
 			l.first++
 		}
 	}
+	return l
 }
 
-func (l *List) Prev() {
+func (l *List) Prev() *List {
 	if l.selected == 0 {
 		l.selected = len(l.filteredItems) - 1
 		l.first = utils.Max(0, l.selected-l.height+1)
@@ -87,4 +94,5 @@ func (l *List) Prev() {
 			l.first = l.selected
 		}
 	}
+	return l
 }
