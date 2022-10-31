@@ -22,25 +22,25 @@ const (
 	remoteSession
 )
 
+const (
+	headerLines = 4
+	pagerLines  = 2
+)
+
 /* STYLING */
+
 var (
-	focusedStyle = lipgloss.NewStyle().
-			Padding(1, 2).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("62"))
-	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FAFAFA")).
 			Background(lipgloss.Color("#7D56F4")).
 			PaddingLeft(2).
 			PaddingRight(2)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	docStyle          = lipgloss.NewStyle().Margin(1, 2)
-	pagerStyle        = lipgloss.NewStyle().Margin(0, 2)
+	pagerStyle = lipgloss.NewStyle().Margin(0, 2)
+	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 )
 
+/* COMPONENTS */
 var (
 	activeDot   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "235", Dark: "252"}).Render("•")
 	inactiveDot = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "238"}).Render("•")
@@ -86,6 +86,10 @@ func (m *Model) listInit() {
 	}
 }
 
+func (m *Model) CurrentList() *list.List {
+	return &m.lists[m.focused]
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		getActiveSessions,
@@ -99,7 +103,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		for i := range m.lists {
-			m.lists[i].SetHeight(utils.Max(3, msg.Height-4-2))
+			m.lists[i].SetHeight(utils.Max(3, msg.Height-headerLines-pagerLines))
 		}
 
 	case activeSessionsMsg:
@@ -116,41 +120,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "left", "shift+tab":
 			m.PrevList()
-			m.lists[m.focused].SetFilter(m.filter)
-			m.lists[m.focused].Filter()
+			m.CurrentList().SetFilter(m.filter)
+			m.CurrentList().Filter()
 		case "right", "tab":
 			m.NextList()
-			m.lists[m.focused].SetFilter(m.filter)
-			m.lists[m.focused].Filter()
+			m.CurrentList().SetFilter(m.filter)
+			m.CurrentList().Filter()
 		case "down":
-			m.lists[m.focused].Next()
+			m.CurrentList().Next()
 		case "up":
-			m.lists[m.focused].Prev()
+			m.CurrentList().Prev()
 		case "pgdown", "pgup":
 			m.filter += msg.String()
 		case "enter":
 			m.quitting = true
-			m.choice = m.lists[m.focused].Selected()
-			// log.Printf("focused: %d", m.focused)
+			m.choice = m.CurrentList().Selected()
 			executeTmux(m.focused, m.choice)
 			return m, tea.Quit
 		case "backspace", "delete":
 			end := utils.Max(0, len(m.filter)-1)
 			m.filter = m.filter[0:end]
-			m.lists[m.focused].SetFilter(m.filter)
-			m.lists[m.focused].Filter()
+			m.CurrentList().SetFilter(m.filter)
+			m.CurrentList().Filter()
 
 		default:
 			m.filter += msg.String()
-			m.lists[m.focused].SetSelected(0)
-			m.lists[m.focused].SetFilter(m.filter)
-			m.lists[m.focused].Filter()
+			m.CurrentList().SetSelected(0)
+			m.CurrentList().SetFilter(m.filter)
+			m.CurrentList().Filter()
 		}
 	}
-
-	// var cmd tea.Cmd
-	// m.textInput, cmd = m.textInput.Update(msg)
-	// m.lists[m.focused], cmd = m.lists[m.focused].Update(msg)
 
 	return m, nil
 }
@@ -182,15 +181,15 @@ func (m Model) View() string {
 		return ""
 	}
 
-	s := titleStyle.Render(m.lists[m.focused].Title())
+	s := titleStyle.Render(m.CurrentList().Title())
 	s += "\n"
 
 	s += "> " + m.filter + "\n"
 	s += "\n"
 
-	s += m.lists[m.focused].Render()
+	s += m.CurrentList().Render()
 
-	padding := utils.Max(0, m.height-m.lists[m.focused].FilteredItemsCount()-4-2)
+	padding := utils.Max(0, m.height-m.CurrentList().FilteredItemsCount()-headerLines-pagerLines)
 	log.Printf("padding: %v", padding)
 	s += pager(int(m.focused), padding)
 

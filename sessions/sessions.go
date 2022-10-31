@@ -119,8 +119,7 @@ func GetInactiveSessions() []string {
 	return sessions
 }
 
-// cat ~/.ssh/known_hosts \
-// | perl -nE 's/^ \[? ( [A-Za-z][\w\.-]+ ) .*$/$1/x and print' \
+// cat ~/.ssh/known_hosts | perl -nE 's/^ \[? ( [A-Za-z][\w\.-]+ ) .*$/$1/x and print'
 func GetRemoteSessions() []string {
 	file, err := os.Open(fmt.Sprintf("%s/%s", utils.GetHomeDir(), ".ssh/known_hosts"))
 	if err != nil {

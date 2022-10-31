@@ -45,12 +45,12 @@ func getRank(pattern string, text string) int {
 		for i, char := range t {
 			if char == string(wanted) {
 				rank++
-				t[i] = "" // looking for "xx" should only rank 2 if there are 2 x's
+				t[i] = "" // looking for "xx" should only rank 2 iff there are 2 x's
 				found = true
 				break
 			}
 		}
-		if !found { // if any char not found
+		if !found { // if any char not found, remove
 			rank = 0
 			break
 		}

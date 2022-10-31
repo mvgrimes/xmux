@@ -87,5 +87,4 @@ func (l *List) Prev() {
 			l.first = l.selected
 		}
 	}
-
 }
