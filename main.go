@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -226,6 +227,8 @@ func main() {
 			os.Exit(1)
 		}
 		defer f.Close()
+	} else {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
