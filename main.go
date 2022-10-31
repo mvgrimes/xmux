@@ -10,6 +10,7 @@ import (
 
 	"mccwk.com/xmux/list"
 	"mccwk.com/xmux/sessions"
+	"mccwk.com/xmux/utils"
 )
 
 type stage int
@@ -94,7 +95,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		for i, _ := range m.lists {
-			m.lists[i].SetHeight(max(3, msg.Height-4))
+			m.lists[i].SetHeight(utils.Max(3, msg.Height-4))
 		}
 
 	case activeSessionsMsg:
@@ -111,8 +112,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "left", "shift+tab":
 			m.PrevList()
+			m.lists[m.focused].SetFilter(m.filter)
+			m.lists[m.focused].Filter()
 		case "right", "tab":
 			m.NextList()
+			m.lists[m.focused].SetFilter(m.filter)
+			m.lists[m.focused].Filter()
 		case "down":
 			m.lists[m.focused].Next()
 		case "up":
@@ -126,12 +131,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			executeTmux(m.focused, m.choice)
 			return m, tea.Quit
 		case "backspace", "delete":
-			end := max(0, len(m.filter)-1)
+			end := utils.Max(0, len(m.filter)-1)
 			m.filter = m.filter[0:end]
+			m.lists[m.focused].SetFilter(m.filter)
+			m.lists[m.focused].Filter()
 
 		default:
 			m.filter += msg.String()
 			m.lists[m.focused].SetSelected(0)
+			m.lists[m.focused].SetFilter(m.filter)
+			m.lists[m.focused].Filter()
 		}
 	}
 
@@ -175,7 +184,7 @@ func (m Model) View() string {
 	s += "> " + m.filter + "\n"
 	s += "\n"
 
-	s += m.lists[m.focused].Render(m.filter)
+	s += m.lists[m.focused].Render()
 	return s
 }
 
@@ -183,8 +192,9 @@ func main() {
 	model := New()
 	model.listInit()
 
-	if len(os.Getenv("DEBUG")) > -1 {
-		f, err := tea.LogToFile("/Users/mgrimes/src/xmux/debug.log", "debug")
+	if len(os.Getenv("DEBUG")) > 0 {
+		fileName := fmt.Sprintf("%s/%s", utils.GetHomeDir(), "xmux.log")
+		f, err := tea.LogToFile(fileName, "debug")
 		if err != nil {
 			fmt.Println("fatal:", err)
 			os.Exit(1)

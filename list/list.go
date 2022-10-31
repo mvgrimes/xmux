@@ -1,14 +1,19 @@
 package list
 
-import "log"
+import (
+	// "log"
+	"mccwk.com/xmux/utils"
+)
 
 type List struct {
-	title     string
-	items     []string
-	selected  int
-	activeDot string
-	height    int
-	first     int
+	title         string
+	filter        string
+	items         []string
+	filteredItems []string
+	selected      int
+	activeDot     string
+	height        int
+	first         int
 }
 
 func New(title string, activeDot string) List {
@@ -26,25 +31,24 @@ func (l *List) SetTitle(title string) {
 	l.title = title
 }
 
-func (l *List) Items() []string {
-	return l.items
-}
-
 func (l *List) SetItems(items []string) {
 	l.items = items
+	l.Filter()
 }
 
-func (l *List) AddItem(title string) {
-	l.items = append(l.items, title)
+func (l *List) SetFilter(filter string) {
+	l.filter = filter
+	l.Filter()
 }
 
 func (l *List) Selected() string {
-	log.Printf("selected: %d -> %s", l.selected, l.items[l.selected])
-	return l.items[l.selected]
+	// log.Printf("selected: %d -> %s", l.selected, l.filteredItems[l.selected])
+	// log.Printf("selected: %v", l)
+	return l.filteredItems[l.selected]
 }
 
 func (l *List) SetSelected(i int) {
-	if i >= 0 && i < len(l.items) {
+	if i >= 0 && i < len(l.filteredItems) {
 		l.selected = i
 	}
 }
@@ -58,7 +62,7 @@ func (l *List) SetHeight(h int) {
 }
 
 func (l *List) Next() {
-	if l.selected == len(l.items)-1 {
+	if l.selected == len(l.filteredItems)-1 {
 		l.selected = 0
 		l.first = 0
 	} else {
@@ -71,8 +75,8 @@ func (l *List) Next() {
 
 func (l *List) Prev() {
 	if l.selected == 0 {
-		l.selected = len(l.items) - 1
-		l.first = max(0, l.selected-l.height+1)
+		l.selected = len(l.filteredItems) - 1
+		l.first = utils.Max(0, l.selected-l.height+1)
 	} else {
 		l.selected--
 		if l.selected < l.first {
@@ -80,11 +84,4 @@ func (l *List) Prev() {
 		}
 	}
 
-}
-
-func max(a, b int) int {
-	if a >= b {
-		return a
-	}
-	return b
 }

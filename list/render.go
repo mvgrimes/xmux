@@ -2,11 +2,11 @@ package list
 
 // import "log"
 
-func (l *List) Render(filter string) string {
-	filteredItems := l.filter(filter)
+func (l *List) Render() string {
+	// log.Printf("%v", l)
 	s := ""
 
-	for i, item := range filteredItems {
+	for i, item := range l.filteredItems {
 		if i < l.first || i >= l.first+l.height {
 			continue
 		}
@@ -20,14 +20,3 @@ func (l *List) Render(filter string) string {
 
 	return s
 }
-
-// str := fmt.Sprintf("%d. %s", index+1, i.Title())
-//
-// fn := itemStyle.Render
-// if index == m.Index() {
-// 	fn = func(s string) string {
-// 		return selectedItemStyle.Render("> " + s)
-// 	}
-// }
-//
-// fmt.Fprint(w, fn(str))

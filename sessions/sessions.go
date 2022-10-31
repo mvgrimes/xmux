@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"mccwk.com/xmux/utils"
 )
 
 type session struct {
@@ -85,20 +87,11 @@ func getActiveSessions() map[string]int {
 	return sessions
 }
 
-func getHomeDir() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Println("Error getting user's home directory:", err)
-		os.Exit(1)
-	}
-	return homeDir
-}
-
 func GetInactiveSessions() []string {
 	activeSessions := getActiveSessions()
 	sessions := make([]string, 0)
 
-	file, err := os.Open(fmt.Sprintf("%s/%s", getHomeDir(), ".config/tmuxinator"))
+	file, err := os.Open(fmt.Sprintf("%s/%s", utils.GetHomeDir(), ".config/tmuxinator"))
 	if err != nil {
 		fmt.Println("Error reading tmuxinator config:", err)
 		os.Exit(1)
@@ -129,7 +122,7 @@ func GetInactiveSessions() []string {
 // cat ~/.ssh/known_hosts \
 // | perl -nE 's/^ \[? ( [A-Za-z][\w\.-]+ ) .*$/$1/x and print' \
 func GetRemoteSessions() []string {
-	file, err := os.Open(fmt.Sprintf("%s/%s", getHomeDir(), ".ssh/known_hosts"))
+	file, err := os.Open(fmt.Sprintf("%s/%s", utils.GetHomeDir(), ".ssh/known_hosts"))
 	if err != nil {
 		fmt.Println("Error reading .ssh/known_hosts:", err)
 		os.Exit(1)

@@ -12,15 +12,18 @@ type item struct {
 	value string
 }
 
-func (l *List) filter(pattern string) []string {
-	if pattern == "" {
-		return l.items
+func (l *List) Filter() {
+	// log.Printf("Filter: %v", l)
+	if l.filter == "" {
+		l.filteredItems = l.items
+		// log.Printf("Filter: %v", l)
+		return
 	}
 
 	s := make(items, 0)
 
 	for _, v := range l.items {
-		rank := getRank(pattern, v)
+		rank := getRank(l.filter, v)
 		if rank > 0 {
 			s = append(s, item{rank: rank, value: v})
 		}
@@ -28,7 +31,7 @@ func (l *List) filter(pattern string) []string {
 
 	s.Sort()
 	// log.Printf("%v\n", s)
-	return s.strings()
+	l.filteredItems = s.strings()
 }
 
 // TODO: highlight the found characters
