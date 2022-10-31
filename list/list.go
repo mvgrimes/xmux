@@ -41,6 +41,10 @@ func (l *List) SetFilter(filter string) {
 	l.Filter()
 }
 
+func (l *List) FilteredItemsCount() int {
+	return len(l.filteredItems)
+}
+
 func (l *List) Selected() string {
 	// log.Printf("selected: %d -> %s", l.selected, l.filteredItems[l.selected])
 	// log.Printf("selected: %v", l)

@@ -37,6 +37,7 @@ var (
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
 	docStyle          = lipgloss.NewStyle().Margin(1, 2)
+	pagerStyle        = lipgloss.NewStyle().Margin(0, 2)
 )
 
 var (
@@ -50,6 +51,7 @@ type Model struct {
 	focused  stage
 	lists    []list.List
 	filter   string
+	height   int
 	err      error
 	choice   string
 	quitting bool
@@ -94,8 +96,9 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		for i, _ := range m.lists {
-			m.lists[i].SetHeight(utils.Max(3, msg.Height-4))
+		m.height = msg.Height
+		for i := range m.lists {
+			m.lists[i].SetHeight(utils.Max(3, msg.Height-4-2))
 		}
 
 	case activeSessionsMsg:
@@ -127,7 +130,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.quitting = true
 			m.choice = m.lists[m.focused].Selected()
-			log.Printf("focused: %d", m.focused)
+			// log.Printf("focused: %d", m.focused)
 			executeTmux(m.focused, m.choice)
 			return m, tea.Quit
 		case "backspace", "delete":
@@ -185,7 +188,30 @@ func (m Model) View() string {
 	s += "\n"
 
 	s += m.lists[m.focused].Render()
+
+	padding := utils.Max(0, m.height-m.lists[m.focused].FilteredItemsCount()-4-2)
+	log.Printf("padding: %v", padding)
+	s += pager(int(m.focused), padding)
+
 	return s
+}
+
+func pager(focused int, topPadding int) string {
+	p := "\n"
+
+	for i := 0; i < topPadding; i++ {
+		p += "\n"
+	}
+
+	for i := 0; i < 3; i++ {
+		if i == focused {
+			p += activeDot
+		} else {
+			p += inactiveDot
+		}
+	}
+
+	return pagerStyle.Render(p)
 }
 
 func main() {
