@@ -96,3 +96,22 @@ func (l *List) Prev() *List {
 	}
 	return l
 }
+
+func (l *List) PageDown() *List {
+	nextPage := l.selected + l.height
+	lastPage := l.FilteredItemsCount() - l.height
+
+	l.first = utils.Min(nextPage, lastPage)
+	l.selected = l.first
+
+	return l
+}
+
+func (l *List) PageUp() *List {
+	priorPage := l.selected - l.height
+
+	l.first = utils.Max(priorPage, 0)
+	l.selected = l.first
+
+	return l
+}

@@ -128,8 +128,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.CurrentList().Next()
 		case "up":
 			m.CurrentList().Prev()
-		case "pgdown", "pgup":
-			m.filter += msg.String()
+		case "pgdown":
+			m.CurrentList().PageDown()
+		case "pgup":
+			m.CurrentList().PageUp()
 		case "enter":
 			m.quitting = true
 			m.choice = m.CurrentList().Selected()
