@@ -1,9 +1,20 @@
 package list
 
-// import "log"
+import (
+	// "log"
+
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	highlightStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA"))
+)
 
 func (l *List) Render() string {
-	// log.Printf("%v", l)
 	s := ""
 
 	for i, item := range l.filteredItems {
@@ -15,7 +26,21 @@ func (l *List) Render() string {
 		if i == l.selected {
 			selected = l.activeDot
 		}
-		s += selected + " " + item + "\n"
+		s += selected + " " + highlight(item, l.filter) + "\n"
+	}
+
+	return s
+}
+
+func highlight(item, filter string) string {
+	s := ""
+	for _, v := range item {
+		vString := string(v)
+		if strings.Contains(filter, vString) {
+			s += highlightStyle.Render(vString)
+		} else {
+			s += vString
+		}
 	}
 
 	return s
