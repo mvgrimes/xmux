@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"mccwk.com/xmux/list"
+	"mccwk.com/xmux/pager"
 	"mccwk.com/xmux/sessions"
 	"mccwk.com/xmux/utils"
 )
@@ -191,27 +192,9 @@ func (m Model) View() string {
 
 	padding := utils.Max(0, m.height-m.CurrentList().FilteredItemsCount()-headerLines-pagerLines)
 	log.Printf("padding: %v", padding)
-	s += pager(int(m.focused), padding)
+	s += pager.Render(int(m.focused), padding)
 
 	return s
-}
-
-func pager(focused int, topPadding int) string {
-	p := "\n"
-
-	for i := 0; i < topPadding; i++ {
-		p += "\n"
-	}
-
-	for i := 0; i < 3; i++ {
-		if i == focused {
-			p += activeDot
-		} else {
-			p += inactiveDot
-		}
-	}
-
-	return pagerStyle.Render(p)
 }
 
 func main() {
