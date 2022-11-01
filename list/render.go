@@ -22,21 +22,28 @@ func (l *List) Render() string {
 			continue
 		}
 
-		selected := " "
-		if i == l.selected {
-			selected = l.activeDot
-		}
-		s += selected + " " + highlight(item, l.filter) + "\n"
+		s += l.renderItem(i, item)
 	}
 
 	return s
 }
 
-func highlight(item, filter string) string {
+func (l *List) renderItem(i int, item string) string {
+	selected := " "
+
+	if i == l.selected {
+		selected = l.activeDot
+	}
+
+	return selected + " " + l.highlight(item) + "\n"
+}
+
+func (l *List) highlight(item string) string {
 	s := ""
+
 	for _, v := range item {
 		vString := string(v)
-		if strings.Contains(filter, vString) {
+		if strings.Contains(l.filter, vString) {
 			s += highlightStyle.Render(vString)
 		} else {
 			s += vString
