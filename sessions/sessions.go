@@ -132,7 +132,7 @@ func GetRemoteSessions() []string {
 	fileScanner.Split(bufio.ScanLines)
 
 	hosts := make([]string, 0)
-	re := regexp.MustCompile(`^\[?([A-Za-z][\w\.-]+)`)
+	re := regexp.MustCompile(`^\[?([A-Za-z][\w\.-]+)[, ]`)
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
 
