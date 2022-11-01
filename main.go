@@ -31,20 +31,7 @@ const (
 /* STYLING */
 
 var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
-			PaddingLeft(2).
-			PaddingRight(2)
-	pagerStyle = lipgloss.NewStyle().Margin(0, 2)
-	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-)
-
-/* COMPONENTS */
-var (
-	activeDot   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "235", Dark: "252"}).Render("•")
-	inactiveDot = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "238"}).Render("•")
+	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 )
 
 /* MAIN MODEL */
@@ -81,9 +68,9 @@ func (m *Model) PrevList() {
 
 func (m *Model) listInit() {
 	m.lists = []list.List{
-		list.New("Active Session", activeDot),
-		list.New("Inactive Session", activeDot),
-		list.New("Remote Session", activeDot),
+		list.New("Active Session"),
+		list.New("Inactive Session"),
+		list.New("Remote Session"),
 	}
 }
 
@@ -182,7 +169,7 @@ func (m Model) View() string {
 		return ""
 	}
 
-	s := titleStyle.Render(m.CurrentList().Title())
+	s := m.CurrentList().Title()
 	s += "\n"
 
 	s += "> " + m.filter + "\n"

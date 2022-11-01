@@ -9,9 +9,13 @@ import (
 )
 
 var (
+	// Styles
 	highlightStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FAFAFA"))
+			Bold(true).
+			Foreground(lipgloss.Color("#FAFAFA"))
+
+	// Components
+	activeDot = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "235", Dark: "252"}).Render("•")
 )
 
 func (l *List) Render() string {
@@ -32,7 +36,7 @@ func (l *List) renderItem(i int, item string) string {
 	selected := " "
 
 	if i == l.selected {
-		selected = l.activeDot
+		selected = activeDot
 	}
 
 	return selected + " " + l.highlight(item) + "\n"

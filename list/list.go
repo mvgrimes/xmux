@@ -2,6 +2,9 @@ package list
 
 import (
 	// "log"
+
+	"github.com/charmbracelet/lipgloss"
+
 	"mccwk.com/xmux/utils"
 )
 
@@ -11,20 +14,26 @@ type List struct {
 	items         []string
 	filteredItems []string
 	selected      int
-	activeDot     string
 	height        int
 	first         int
 }
 
-func New(title string, activeDot string) List {
-	if activeDot == "" {
-		activeDot = ">"
-	}
-	return List{title: title, items: make([]string, 0), activeDot: activeDot, height: 20}
+var (
+	// Styles
+	titleStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		PaddingLeft(2).
+		PaddingRight(2)
+)
+
+func New(title string) List {
+	return List{title: title, items: make([]string, 0), height: 20}
 }
 
 func (l *List) Title() string {
-	return l.title
+	return titleStyle.Render(l.title)
 }
 
 func (l *List) SetTitle(title string) *List {
@@ -58,11 +67,6 @@ func (l *List) SetSelected(i int) *List {
 	if i >= 0 && i < len(l.filteredItems) {
 		l.selected = i
 	}
-	return l
-}
-
-func (l *List) SetActiveDot(a string) *List {
-	l.activeDot = a
 	return l
 }
 
