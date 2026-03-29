@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mvgrimes/xmux/state"
+	"github.com/mvgrimes/xmux/internal/state"
 )
 
 var alertPattern string

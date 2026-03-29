@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
-	"github.com/mvgrimes/xmux/state"
+	"github.com/mvgrimes/xmux/internal/state"
 )
 
 // NewCommand returns the cobra command for `xmux bar`.

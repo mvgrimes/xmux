@@ -1,6 +1,6 @@
 APP       := "xmux"
-VER_FILE  := "./main.go"
-MAIN_FILE := "./main.go"
+VER_FILE  := "./cmd/xmux/main.go"
+MAIN_FILE := "./cmd/xmux/main.go"
 VERSION   := shell('perl -nE "m{version\\s*=\\s*\"(\\d+\\.\\d+\\.\\d+)\"}i && print \$1" ' + VER_FILE)
 
 build:

@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/mvgrimes/xmux/utils"
+	"github.com/mvgrimes/xmux/internal/utils"
 )
 
 type List struct {
