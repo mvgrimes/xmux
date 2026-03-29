@@ -8,11 +8,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
 
-	"mccwk.com/xmux/list"
-	"mccwk.com/xmux/pager"
-	"mccwk.com/xmux/sessions"
-	"mccwk.com/xmux/utils"
+	"github.com/mvgrimes/xmux/cmd/bar"
+	"github.com/mvgrimes/xmux/cmd/watch"
+	"github.com/mvgrimes/xmux/list"
+	"github.com/mvgrimes/xmux/pager"
+	"github.com/mvgrimes/xmux/sessions"
+	"github.com/mvgrimes/xmux/utils"
 )
 
 type stage int
@@ -184,7 +187,7 @@ func (m Model) View() string {
 	return s
 }
 
-func main() {
+func runTUI(cmd *cobra.Command, args []string) error {
 	model := New()
 	model.listInit()
 
@@ -192,8 +195,7 @@ func main() {
 		fileName := fmt.Sprintf("%s/%s", utils.GetHomeDir(), "xmux.log")
 		f, err := tea.LogToFile(fileName, "debug")
 		if err != nil {
-			fmt.Println("fatal:", err)
-			os.Exit(1)
+			return fmt.Errorf("fatal: %w", err)
 		}
 		defer f.Close()
 	} else {
@@ -201,8 +203,20 @@ func main() {
 	}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	if err := p.Start(); err != nil {
-		fmt.Println(err)
+	return p.Start()
+}
+
+func main() {
+	root := &cobra.Command{
+		Use:          "xmux",
+		Short:        "tmux session launcher and service monitor",
+		SilenceUsage: true,
+		RunE:         runTUI,
+	}
+	root.AddCommand(watch.NewCommand())
+	root.AddCommand(bar.NewCommand())
+
+	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
 }

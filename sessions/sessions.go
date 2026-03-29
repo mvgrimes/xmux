@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"mccwk.com/xmux/utils"
+	"github.com/mvgrimes/xmux/utils"
 )
 
 type session struct {
