@@ -13,8 +13,8 @@ func TestGetRank(t *testing.T) {
 		{"abc", "xaxbxcx", true},
 		{"xyz", "abc", false},
 		{"", "anything", false}, // empty pattern handled by Filter(), but getRank returns 0 for ""
-		{"aa", "ba", false}, // only one 'a' in text
-		{"aa", "baa", true}, // two 'a's available
+		{"aa", "ba", false},     // only one 'a' in text
+		{"aa", "baa", true},     // two 'a's available
 	}
 	for _, tt := range tests {
 		rank := getRank(tt.pattern, tt.text)
