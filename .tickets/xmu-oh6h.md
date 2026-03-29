@@ -1,6 +1,6 @@
 ---
 id: xmu-oh6h
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T20:29:53Z

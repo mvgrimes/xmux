@@ -1,6 +1,6 @@
 ---
 id: xmu-ords
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T20:28:29Z
