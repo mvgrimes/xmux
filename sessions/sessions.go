@@ -147,7 +147,6 @@ func GetRemoteSessions() []string {
 		}
 
 		hosts = append(hosts, host)
-
 	}
 
 	return hosts
