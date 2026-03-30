@@ -23,9 +23,10 @@ type Status struct {
 	State     string `json:"state"`
 	LastLine  string `json:"last_line"`
 	AlertLine string `json:"alert_line"`
-	PID       int    `json:"pid"`
-	TS        int64  `json:"ts"`
-	ExitCode  int    `json:"exit_code"`
+	PID        int    `json:"pid"`
+	WatcherPID int    `json:"watcher_pid"`
+	TS         int64  `json:"ts"`
+	ExitCode   int    `json:"exit_code"`
 }
 
 // Dir returns the state directory for a session.
