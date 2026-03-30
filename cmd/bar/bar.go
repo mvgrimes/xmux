@@ -2,8 +2,10 @@ package bar
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -87,7 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "q":
 			return m, tea.Quit
 		case "j", "down":
 			if m.selected < len(m.services)-1 {
@@ -101,6 +103,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.services) > 0 {
 				return m, openPopup(m.session, m.services[m.selected])
 			}
+		case "r":
+			if len(m.services) > 0 {
+				return m, restartService(m.session, m.services[m.selected])
+			}
+		case "ctrl+c":
+			if len(m.services) > 0 {
+				return m, killService(m.services[m.selected])
+			}
+		case "a":
+			return m, addWatcher()
+		case "ctrl+d":
+			return m, killAllAndQuit(m.services)
 		}
 	}
 	return m, nil
@@ -108,11 +122,60 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func openPopup(session string, svc state.Status) tea.Cmd {
 	return func() tea.Msg {
-		logFile := state.LogFile(session, svc.Name)
 		exec.Command("tmux", "popup", "-E",
 			"-w", "80%", "-h", "80%",
 			"-T", " "+svc.Name,
-			fmt.Sprintf("less +G '%s'", logFile),
+			"xmux", "popup", session, svc.Name,
+		).Run() //nolint:errcheck
+		return nil
+	}
+}
+
+/* ── process helpers ── */
+
+func killProcess(pid int, sig syscall.Signal) {
+	if pid <= 0 {
+		return
+	}
+	proc, err := os.FindProcess(pid)
+	if err == nil {
+		proc.Signal(sig) //nolint:errcheck
+	}
+}
+
+func restartService(_ string, svc state.Status) tea.Cmd {
+	return func() tea.Msg {
+		killProcess(svc.WatcherPID, syscall.SIGHUP)
+		return nil
+	}
+}
+
+func killService(svc state.Status) tea.Cmd {
+	return func() tea.Msg {
+		killProcess(svc.PID, syscall.SIGTERM)
+		return nil
+	}
+}
+
+func killAllAndQuit(services []state.Status) tea.Cmd {
+	return tea.Sequentially(
+		func() tea.Msg {
+			for _, svc := range services {
+				killProcess(svc.WatcherPID, syscall.SIGTERM)
+			}
+			return nil
+		},
+		tea.Quit,
+	)
+}
+
+func addWatcher() tea.Cmd {
+	return func() tea.Msg {
+		exec.Command("tmux", "popup", "-E",
+			"-w", "80%", "-h", "40%",
+			"-T", " add watcher",
+			"bash", "-c",
+			`read -ep "xmux watch " args && eval "xmux watch $args"`,
 		).Run() //nolint:errcheck
 		return nil
 	}
