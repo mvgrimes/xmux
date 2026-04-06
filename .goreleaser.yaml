@@ -13,7 +13,7 @@ builds:
     goos:
       - linux
       - darwin
-    main: ./cmd/xmux/main.go
+    main: ./cmd/xmux/
 
 archives:
   - formats: [tar.gz]
