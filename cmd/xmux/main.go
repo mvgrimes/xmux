@@ -18,7 +18,7 @@ import (
 	"github.com/mvgrimes/xmux/internal/utils"
 )
 
-var version = "0.2.0"
+var version = "0.2.1"
 
 type stage int
 

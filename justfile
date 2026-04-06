@@ -18,11 +18,6 @@ fmt:
 test:
   go test ./...
 
-install:
-  GOOS=linux  GOARCH=amd64  go build -o {{APP}} {{MAIN_FILE}} && mv {{APP}} ~/.dotfiles/auto/os/Linux/bin/
-  GOOS=darwin GOARCH=arm64  go build -o {{APP}} {{MAIN_FILE}} && mv {{APP}} ~/.dotfiles/auto/os-arch/Darwin-arm64/bin/
-  GOOS=darwin GOARCH=amd64  go build -o {{APP}} {{MAIN_FILE}} && mv {{APP}} ~/.dotfiles/auto/os-arch/Darwin-x86_64/bin/
-
 release:
   go mod tidy
   just fmt

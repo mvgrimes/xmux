@@ -1,4 +1,30 @@
+# logs
+*.log
 debug.log
+
+# dotenv environment variables file
+.env
+.env.*
+.autoenv.zsh
+
+# tmp, system and ref files
 tmp/
+_tmp/
+.DS_Store
+/docs/ref/
+
+# tickets
+.tickets/
+
+# Editor
+Session.vim
+
+# Added by goreleaser init:
+dist/
+
+# Samples
+
+# Build artifacts
+/main
 /xmux
-x.pl
+/x.pl
