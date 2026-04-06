@@ -2,6 +2,7 @@ package bar
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,27 +16,72 @@ import (
 	"github.com/mvgrimes/xmux/internal/state"
 )
 
+var spawnServices []string
+
 // NewCommand returns the cobra command for `xmux bar`.
 func NewCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:          "bar",
-		Short:        "Run the sidebar service monitor",
+	cmd := &cobra.Command{
+		Use:   "bar",
+		Short: "Run the sidebar service monitor",
+		Long: `bar runs the sidebar service monitor in the current tmux pane.
+
+Use --spawn to launch watched services directly from the bar, eliminating the
+need for a separate background window. Each --spawn value is the args you would
+pass to "xmux watch":
+
+  xmux bar \
+    --spawn "dev -- npm run dev" \
+    --spawn "gen --alert 'error|Error' -- npm run codegen --watch"`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run()
+			return run(spawnServices)
 		},
 	}
+	cmd.Flags().StringArrayVar(&spawnServices, "spawn", nil,
+		`spawn a watched service; value is args for "xmux watch" (repeatable)`)
+	return cmd
 }
 
-func run() error {
+func run(spawns []string) error {
 	out, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
 	if err != nil {
 		return fmt.Errorf("must be run inside a tmux session: %w", err)
 	}
 	session := strings.TrimSpace(string(out))
 
+	if err := spawnWatchers(spawns); err != nil {
+		return err
+	}
+
 	p := tea.NewProgram(newModel(session))
 	return p.Start()
+}
+
+// spawnWatchers launches an `xmux watch` subprocess for each spawn spec.
+// Subprocess stdout/stderr are discarded — output is captured in the log file.
+// Cleanup happens via ctrl+d → killAllAndQuit, which signals each WatcherPID.
+func spawnWatchers(spawns []string) error {
+	if len(spawns) == 0 {
+		return nil
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+	for _, s := range spawns {
+		c := exec.Command("sh", "-c", shellQuote(self)+" watch "+s)
+		c.Stdout = io.Discard
+		c.Stderr = io.Discard
+		if err := c.Start(); err != nil {
+			return fmt.Errorf("spawn %q: %w", s, err)
+		}
+		// Do not Wait — watcher runs for the lifetime of the session.
+	}
+	return nil
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 /* ── model ── */
