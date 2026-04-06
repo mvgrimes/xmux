@@ -173,4 +173,3 @@ func (m model) View() string {
 
 	return sb.String()
 }
-

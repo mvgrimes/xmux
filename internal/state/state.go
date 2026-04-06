@@ -18,11 +18,11 @@ const (
 
 // Status represents the current health of a watched service.
 type Status struct {
-	Name      string `json:"name"`
-	Icon      string `json:"icon"`
-	State     string `json:"state"`
-	LastLine  string `json:"last_line"`
-	AlertLine string `json:"alert_line"`
+	Name       string `json:"name"`
+	Icon       string `json:"icon"`
+	State      string `json:"state"`
+	LastLine   string `json:"last_line"`
+	AlertLine  string `json:"alert_line"`
 	PID        int    `json:"pid"`
 	WatcherPID int    `json:"watcher_pid"`
 	TS         int64  `json:"ts"`
