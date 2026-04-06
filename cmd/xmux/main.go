@@ -18,6 +18,8 @@ import (
 	"github.com/mvgrimes/xmux/internal/utils"
 )
 
+var version = "0.2.0"
+
 type stage int
 
 const (
@@ -210,6 +212,13 @@ func main() {
 	root.AddCommand(watch.NewCommand())
 	root.AddCommand(bar.NewCommand())
 	root.AddCommand(popup.NewCommand())
+	root.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print the version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version)
+		},
+	})
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
