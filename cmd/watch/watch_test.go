@@ -2,8 +2,12 @@ package watch
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mvgrimes/xmux/internal/state"
 )
 
 func TestScanOutputWritesToOutAndLog(t *testing.T) {
@@ -45,5 +49,35 @@ func TestScanOutputAcceptsLargeLines(t *testing.T) {
 	}
 	if got, want := log.Len(), len(large)+1; got != want {
 		t.Fatalf("log length mismatch\n got: %d\nwant: %d", got, want)
+	}
+}
+
+func TestRunWritesStartFailureToLog(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmp)
+	t.Setenv("XMUX_SESSION", "watch-start-fail")
+	alertPattern = ""
+
+	err := run(nil, []string{"svc", "command-that-does-not-exist"})
+	if err == nil {
+		t.Fatal("expected run to fail for missing command")
+	}
+
+	logPath := state.LogFile("watch-start-fail", "svc")
+	data, readErr := os.ReadFile(logPath)
+	if readErr != nil {
+		t.Fatalf("read log file: %v", readErr)
+	}
+	if !strings.Contains(string(data), "start command error") {
+		t.Fatalf("expected start failure in log, got: %q", string(data))
+	}
+
+	statusPath := filepath.Join(state.Dir("watch-start-fail"), "svc.json")
+	statusData, readStatusErr := os.ReadFile(statusPath)
+	if readStatusErr != nil {
+		t.Fatalf("read status file: %v", readStatusErr)
+	}
+	if !strings.Contains(string(statusData), `"state":"exited"`) {
+		t.Fatalf("expected exited state after start failure, got: %q", string(statusData))
 	}
 }

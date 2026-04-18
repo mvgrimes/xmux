@@ -208,14 +208,25 @@ func run(cmd *cobra.Command, args []string) error {
 		c := exec.Command(command[0], command[1:]...)
 		stdoutPipe, err := c.StdoutPipe()
 		if err != nil {
+			fmt.Fprintf(logFile, "[xmux watch] stdout pipe error: %v\n", err)
 			return err
 		}
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
+			fmt.Fprintf(logFile, "[xmux watch] stderr pipe error: %v\n", err)
 			return err
 		}
 
 		if err := c.Start(); err != nil {
+			msg := fmt.Sprintf("[xmux watch] start command error: %v", err)
+			fmt.Fprintln(logFile, msg)
+			w.mu.Lock()
+			w.status.State = state.StateExited
+			w.status.LastLine = msg
+			w.status.ExitCode = 127
+			w.status.TS = time.Now().Unix()
+			_ = state.Write(session, w.status)
+			w.mu.Unlock()
 			return fmt.Errorf("start command: %w", err)
 		}
 
