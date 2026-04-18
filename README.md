@@ -56,9 +56,10 @@ Add a sidebar pane to your tmuxinator YAML:
 ```yaml
 windows:
   - editor: vim .
-  - dev: xmux watch dev 󰎙 --alert 'error|Error|failed' -- npm run dev
-  - codegen: xmux watch gen  --alert 'error' -- npm run codegen --watch
-  - sidebar: xmux bar
+  - sidebar: >
+      xmux bar
+      --spawn "dev 󰎙 --alert 'error|Error|failed' -- npm run dev"
+      --spawn "gen --alert 'error' -- npm run codegen --watch"
 ```
 
 Then split a narrow pane for the bar:
@@ -80,6 +81,15 @@ State transitions: `starting` → `running` → `activity` (on output) →
 
 BubbleTea TUI for the 4-column sidebar. Polls the state directory every 500 ms
 and renders stacked service icons colored by state:
+
+`--spawn` is repeatable and each value should be the exact args you'd pass to
+`xmux watch`.
+
+```bash
+xmux bar \
+  --spawn "dev 󰎙 --alert 'error|Error|failed' -- npm run dev" \
+  --spawn "gen --alert 'error' -- npm run codegen --watch"
+```
 
 | State      | Color            |
 |------------|------------------|
