@@ -49,7 +49,7 @@ func run(spawns []string) error {
 	}
 	session := strings.TrimSpace(string(out))
 
-	if err := spawnWatchers(spawns); err != nil {
+	if err := spawnWatchers(session, spawns); err != nil {
 		return err
 	}
 
@@ -60,7 +60,7 @@ func run(spawns []string) error {
 // spawnWatchers launches an `xmux watch` subprocess for each spawn spec.
 // Subprocess stdout/stderr are discarded — output is captured in the log file.
 // Cleanup happens via ctrl+d → killAllAndQuit, which signals each WatcherPID.
-func spawnWatchers(spawns []string) error {
+func spawnWatchers(session string, spawns []string) error {
 	if len(spawns) == 0 {
 		return nil
 	}
@@ -70,6 +70,7 @@ func spawnWatchers(spawns []string) error {
 	}
 	for _, s := range spawns {
 		c := exec.Command("sh", "-c", shellQuote(self)+" watch "+s)
+		c.Env = append(os.Environ(), "XMUX_SESSION="+session)
 		c.Stdout = io.Discard
 		c.Stderr = io.Discard
 		if err := c.Start(); err != nil {

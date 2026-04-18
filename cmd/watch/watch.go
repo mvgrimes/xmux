@@ -157,11 +157,10 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve current tmux session.
-	out, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
+	session, err := resolveSession()
 	if err != nil {
-		return fmt.Errorf("must be run inside a tmux session: %w", err)
+		return err
 	}
-	session := strings.TrimSpace(string(out))
 
 	// Compile alert regex if provided.
 	var alertRe *regexp.Regexp
@@ -284,4 +283,23 @@ func run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
+}
+
+func resolveSession() (string, error) {
+	if session := strings.TrimSpace(os.Getenv("XMUX_SESSION")); session != "" {
+		return session, nil
+	}
+
+	if pane := strings.TrimSpace(os.Getenv("TMUX_PANE")); pane != "" {
+		out, err := exec.Command("tmux", "display-message", "-p", "-t", pane, "#S").Output()
+		if err == nil {
+			return strings.TrimSpace(string(out)), nil
+		}
+	}
+
+	out, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
+	if err != nil {
+		return "", fmt.Errorf("must be run inside a tmux session: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
