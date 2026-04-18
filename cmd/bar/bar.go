@@ -1,6 +1,7 @@
 package bar
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -50,36 +51,49 @@ func run(spawns []string) error {
 	}
 	session := strings.TrimSpace(string(out))
 
-	if err := spawnWatchers(session, spawns); err != nil {
+	spawned, err := spawnWatchers(session, spawns)
+	if err != nil {
 		return err
 	}
 
 	p := tea.NewProgram(newModel(session))
-	return p.Start()
+	runErr := p.Start()
+	cleanupErr := stopAndWait(spawned)
+	if runErr != nil {
+		if cleanupErr != nil {
+			return fmt.Errorf("%v (cleanup: %w)", runErr, cleanupErr)
+		}
+		return runErr
+	}
+	return cleanupErr
 }
 
 // spawnWatchers launches an `xmux watch` subprocess for each spawn spec.
 // Subprocess stdout/stderr are discarded — output is captured in the log file.
 // Cleanup happens via ctrl+d → killAllAndQuit, which signals each WatcherPID.
-func spawnWatchers(session string, spawns []string) error {
+func spawnWatchers(session string, spawns []string) ([]*exec.Cmd, error) {
 	if len(spawns) == 0 {
-		return nil
+		return nil, nil
 	}
 	self, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("resolve executable: %w", err)
+		return nil, fmt.Errorf("resolve executable: %w", err)
 	}
+	spawned := make([]*exec.Cmd, 0, len(spawns))
 	for _, s := range spawns {
 		c := exec.Command("sh", "-c", shellQuote(self)+" watch "+s)
+		c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		c.Env = envWithSession(session)
 		c.Stdout = io.Discard
 		c.Stderr = io.Discard
 		if err := c.Start(); err != nil {
-			return fmt.Errorf("spawn %q: %w", s, err)
+			_ = stopAndWait(spawned)
+			return nil, fmt.Errorf("spawn %q: %w", s, err)
 		}
+		spawned = append(spawned, c)
 		// Do not Wait — watcher runs for the lifetime of the session.
 	}
-	return nil
+	return spawned, nil
 }
 
 func shellQuote(s string) string {
@@ -96,6 +110,56 @@ func envWithSession(session string) []string {
 		out = append(out, kv)
 	}
 	return append(out, "XMUX_SESSION="+session)
+}
+
+func stopAndWait(cmds []*exec.Cmd) error {
+	var firstErr error
+	for _, c := range cmds {
+		if c == nil || c.Process == nil {
+			continue
+		}
+		pid := c.Process.Pid
+		if pid <= 0 {
+			continue
+		}
+
+		if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil && err != syscall.ESRCH {
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+
+		waitDone := make(chan error, 1)
+		go func(cmd *exec.Cmd) {
+			waitDone <- cmd.Wait()
+		}(c)
+
+		select {
+		case err := <-waitDone:
+			if err != nil && !isTerminationError(err) && firstErr == nil {
+				firstErr = err
+			}
+		case <-time.After(3 * time.Second):
+			_ = syscall.Kill(-pid, syscall.SIGKILL)
+			if err := <-waitDone; err != nil && !isTerminationError(err) && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
+}
+
+func isTerminationError(err error) bool {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return false
+	}
+	ws, ok := exitErr.Sys().(syscall.WaitStatus)
+	if !ok || !ws.Signaled() {
+		return false
+	}
+	sig := ws.Signal()
+	return sig == syscall.SIGTERM || sig == syscall.SIGKILL
 }
 
 /* ── model ── */
