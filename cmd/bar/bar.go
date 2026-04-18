@@ -71,7 +71,7 @@ func spawnWatchers(session string, spawns []string) error {
 	}
 	for _, s := range spawns {
 		c := exec.Command("sh", "-c", shellQuote(self)+" watch "+s)
-		c.Env = append(os.Environ(), "XMUX_SESSION="+session)
+		c.Env = envWithSession(session)
 		c.Stdout = io.Discard
 		c.Stderr = io.Discard
 		if err := c.Start(); err != nil {
@@ -84,6 +84,18 @@ func spawnWatchers(session string, spawns []string) error {
 
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+func envWithSession(session string) []string {
+	env := os.Environ()
+	out := make([]string, 0, len(env)+1)
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "XMUX_SESSION=") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return append(out, "XMUX_SESSION="+session)
 }
 
 /* ── model ── */
