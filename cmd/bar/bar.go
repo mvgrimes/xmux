@@ -58,7 +58,10 @@ func run(spawns []string) error {
 
 	p := tea.NewProgram(newModel(session))
 	runErr := p.Start()
-	cleanupErr := stopAndWait(spawned)
+	cleanupErr := errors.Join(
+		stopAndWait(spawned),
+		cleanupSpawnedLogs(session, spawned),
+	)
 	if runErr != nil {
 		if cleanupErr != nil {
 			return fmt.Errorf("%v (cleanup: %w)", runErr, cleanupErr)
@@ -147,6 +150,39 @@ func stopAndWait(cmds []*exec.Cmd) error {
 		}
 	}
 	return firstErr
+}
+
+func cleanupSpawnedLogs(session string, cmds []*exec.Cmd) error {
+	if len(cmds) == 0 {
+		return nil
+	}
+	pids := make(map[int]struct{}, len(cmds))
+	for _, c := range cmds {
+		if c == nil || c.Process == nil || c.Process.Pid <= 0 {
+			continue
+		}
+		pids[c.Process.Pid] = struct{}{}
+	}
+	if len(pids) == 0 {
+		return nil
+	}
+
+	services, err := state.ReadAll(session)
+	if err != nil {
+		return err
+	}
+
+	var cleanupErr error
+	for _, svc := range services {
+		if _, ok := pids[svc.WatcherPID]; !ok {
+			continue
+		}
+		err := os.Remove(state.LogFile(session, svc.Name))
+		if err != nil && !os.IsNotExist(err) {
+			cleanupErr = errors.Join(cleanupErr, err)
+		}
+	}
+	return cleanupErr
 }
 
 func isTerminationError(err error) bool {
