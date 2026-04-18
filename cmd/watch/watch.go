@@ -22,6 +22,8 @@ import (
 
 var alertPattern string
 
+const maxScanTokenSize = 1024 * 1024
+
 // NewCommand returns the cobra command for `xmux watch`.
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -227,12 +229,8 @@ func run(cmd *cobra.Command, args []string) error {
 		var wg sync.WaitGroup
 		scan := func(r io.Reader, out io.Writer) {
 			defer wg.Done()
-			scanner := bufio.NewScanner(r)
-			for scanner.Scan() {
-				line := scanner.Text()
-				fmt.Fprintln(out, line)
-				fmt.Fprintln(logFile, line)
-				w.onLine(line)
+			if err := scanOutput(r, out, logFile, w.onLine); err != nil {
+				fmt.Fprintf(logFile, "[xmux watch] output scan error: %v\n", err)
 			}
 		}
 
@@ -283,6 +281,18 @@ func run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
+}
+
+func scanOutput(r io.Reader, out io.Writer, log io.Writer, onLine func(string)) error {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), maxScanTokenSize)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Fprintln(out, line)
+		fmt.Fprintln(log, line)
+		onLine(line)
+	}
+	return scanner.Err()
 }
 
 func resolveSession() (string, error) {
