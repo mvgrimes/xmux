@@ -17,6 +17,7 @@ import (
 )
 
 var spawnServices []string
+var runBar = run
 
 // NewCommand returns the cobra command for `xmux bar`.
 func NewCommand() *cobra.Command {
@@ -34,7 +35,7 @@ pass to "xmux watch":
     --spawn "gen --alert 'error|Error' -- npm run codegen --watch"`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(spawnServices)
+			return runBar(spawnServices)
 		},
 	}
 	cmd.Flags().StringArrayVar(&spawnServices, "spawn", nil,
