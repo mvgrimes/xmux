@@ -16,9 +16,9 @@ func TestScanOutputWritesToOutAndLog(t *testing.T) {
 	var log bytes.Buffer
 	var lines []string
 
-	err := scanOutput(in, &out, &log, func(line string) {
+	err := scanOutput(in, &out, &log, func(line string, _ bool) {
 		lines = append(lines, line)
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("scanOutput returned error: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestScanOutputAcceptsLargeLines(t *testing.T) {
 	var out bytes.Buffer
 	var log bytes.Buffer
 
-	err := scanOutput(in, &out, &log, func(string) {})
+	err := scanOutput(in, &out, &log, func(string, bool) {}, false)
 	if err != nil {
 		t.Fatalf("scanOutput returned error for large line: %v", err)
 	}
@@ -49,6 +49,27 @@ func TestScanOutputAcceptsLargeLines(t *testing.T) {
 	}
 	if got, want := log.Len(), len(large)+1; got != want {
 		t.Fatalf("log length mismatch\n got: %d\nwant: %d", got, want)
+	}
+}
+
+func TestWatcherOnLineTracksRecentBars(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmp)
+
+	w := &watcher{
+		session: "recent-bars",
+		status:  state.Status{Name: "svc", State: state.StateRunning},
+	}
+
+	w.onLine("ok", false)
+	w.onLine("warn", true)
+
+	got, err := state.Read("recent-bars", "svc")
+	if err != nil {
+		t.Fatalf("read status: %v", err)
+	}
+	if got.RecentBars != "01" {
+		t.Fatalf("unexpected recent bars: %q", got.RecentBars)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 var spawnServices []string
 var runBar = run
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 // NewCommand returns the cobra command for `xmux bar`.
 func NewCommand() *cobra.Command {
@@ -56,7 +58,7 @@ func run(spawns []string) error {
 		return err
 	}
 
-	p := tea.NewProgram(newModel(session))
+	p := tea.NewProgram(newModel(session, spawns), tea.WithAltScreen())
 	runErr := p.Start()
 	cleanupErr := errors.Join(
 		stopAndWait(spawned),
@@ -206,13 +208,15 @@ type svcsMsg []state.Status
 type model struct {
 	session  string
 	services []state.Status
+	order    map[string]int
 	selected int
 	width    int
 	height   int
+	frame    int
 }
 
-func newModel(session string) *model {
-	return &model{session: session}
+func newModel(session string, spawns []string) *model {
+	return &model{session: session, order: spawnOrder(spawns)}
 }
 
 func (m model) Init() tea.Cmd {
@@ -239,10 +243,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	case tickMsg:
+		m.frame = (m.frame + 1) % len(spinnerFrames)
 		return m, tea.Batch(fetchServices(m.session), scheduleTick())
 
 	case svcsMsg:
-		m.services = []state.Status(msg)
+		m.services = sortServicesBySpawnOrder([]state.Status(msg), m.order)
 		if m.selected >= len(m.services) && len(m.services) > 0 {
 			m.selected = len(m.services) - 1
 		}
@@ -356,6 +361,10 @@ func (m model) View() string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("·")
 	}
 
+	normalBar := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("│")
+	errorBar := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Render("│")
+	idleSpinner := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("·")
+
 	var sb strings.Builder
 	for i, svc := range m.services {
 		if i > 0 {
@@ -377,8 +386,86 @@ func (m model) View() string {
 			prefix = "▶"
 		}
 
-		sb.WriteString(prefix + style.Render(svc.Icon) + " ")
+		spinner := " "
+		if svc.State == state.StateActivity {
+			spinner = lipgloss.NewStyle().Foreground(color).Render(spinnerFrames[m.frame])
+		} else {
+			spinner = idleSpinner
+		}
+
+		sb.WriteString(prefix + style.Render(svc.Icon))
+		sb.WriteString("\n ")
+		sb.WriteString(spinner)
+		sb.WriteString("\n")
+		sb.WriteString(renderBarColumn(svc.RecentBars, normalBar, errorBar))
 	}
 
 	return sb.String()
+}
+
+func renderBarColumn(bars, normal, alert string) string {
+	if bars == "" {
+		bars = strings.Repeat("0", 6)
+	}
+	if len(bars) > 6 {
+		bars = bars[len(bars)-6:]
+	}
+	if len(bars) < 6 {
+		bars = strings.Repeat("0", 6-len(bars)) + bars
+	}
+	var sb strings.Builder
+	for i, mark := range bars {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		if mark == '1' {
+			sb.WriteString(" ")
+			sb.WriteString(alert)
+			continue
+		}
+		sb.WriteString(" ")
+		sb.WriteString(normal)
+	}
+	return sb.String()
+}
+
+func spawnOrder(spawns []string) map[string]int {
+	order := make(map[string]int, len(spawns))
+	for i, spec := range spawns {
+		name := spawnName(spec)
+		if name == "" {
+			continue
+		}
+		if _, exists := order[name]; exists {
+			continue
+		}
+		order[name] = i
+	}
+	return order
+}
+
+func spawnName(spec string) string {
+	fields := strings.Fields(spec)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+func sortServicesBySpawnOrder(services []state.Status, order map[string]int) []state.Status {
+	if len(services) < 2 || len(order) == 0 {
+		return services
+	}
+	next := append([]state.Status(nil), services...)
+	const defaultRank = int(^uint(0) >> 1)
+	rank := func(name string) int {
+		if i, ok := order[name]; ok {
+			return i
+		}
+		return defaultRank
+	}
+	sort.SliceStable(next, func(i, j int) bool {
+		return rank(next[i].Name) < rank(next[j].Name)
+	})
+	return next
 }

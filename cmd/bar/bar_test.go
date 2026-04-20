@@ -122,3 +122,47 @@ func TestCleanupSpawnedLogsRemovesOnlyMatchingWatcherLogs(t *testing.T) {
 		t.Fatalf("expected dev state to remain, stat err=%v", err)
 	}
 }
+
+func TestRenderBarColumnPadsAndMarksAlerts(t *testing.T) {
+	got := renderBarColumn("101", "N", "R")
+	if got != " N\n N\n N\n R\n N\n R" {
+		t.Fatalf("unexpected bars: %q", got)
+	}
+
+	got = renderBarColumn("111100", "N", "R")
+	if got != " R\n R\n R\n R\n N\n N" {
+		t.Fatalf("unexpected trimmed bars: %q", got)
+	}
+}
+
+func TestSpawnOrderKeepsFlagOrder(t *testing.T) {
+	order := spawnOrder([]string{
+		"web -- npm run dev",
+		"api -- go run .",
+		"web -- npm run dev",
+	})
+
+	if got, want := order["web"], 0; got != want {
+		t.Fatalf("web order mismatch: got %d want %d", got, want)
+	}
+	if got, want := order["api"], 1; got != want {
+		t.Fatalf("api order mismatch: got %d want %d", got, want)
+	}
+}
+
+func TestSortServicesBySpawnOrder(t *testing.T) {
+	services := []state.Status{
+		{Name: "zzz"},
+		{Name: "api"},
+		{Name: "web"},
+		{Name: "db"},
+	}
+	order := spawnOrder([]string{"web -- npm run dev", "api -- go run ."})
+
+	got := sortServicesBySpawnOrder(services, order)
+	gotNames := []string{got[0].Name, got[1].Name, got[2].Name, got[3].Name}
+	want := []string{"web", "api", "zzz", "db"}
+	if !reflect.DeepEqual(gotNames, want) {
+		t.Fatalf("unexpected service order\n got: %#v\nwant: %#v", gotNames, want)
+	}
+}

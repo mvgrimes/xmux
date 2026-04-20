@@ -12,7 +12,7 @@ import (
 	"github.com/mvgrimes/xmux/cmd/watch"
 )
 
-var version = "0.2.4"
+var version = "0.2.5"
 
 func main() {
 	root := &cobra.Command{

@@ -23,6 +23,7 @@ import (
 var alertPattern string
 
 const maxScanTokenSize = 1024 * 1024
+const recentBarLimit = 6
 
 // NewCommand returns the cobra command for `xmux watch`.
 func NewCommand() *cobra.Command {
@@ -100,10 +101,12 @@ type watcher struct {
 	timer   *time.Timer
 }
 
-func (w *watcher) onLine(line string) {
+func (w *watcher) onLine(line string, fromStderr bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	alertMatch := w.alertRe != nil && w.alertRe.MatchString(line)
+	w.pushRecentBar(fromStderr || alertMatch || w.status.State == state.StateAlert)
 	w.status.LastLine = line
 	w.status.TS = time.Now().Unix()
 
@@ -113,7 +116,7 @@ func (w *watcher) onLine(line string) {
 		return
 	}
 
-	if w.alertRe != nil && w.alertRe.MatchString(line) {
+	if alertMatch {
 		w.status.State = state.StateAlert
 		w.status.AlertLine = line
 		_ = state.Write(w.session, w.status)
@@ -129,6 +132,17 @@ func (w *watcher) onLine(line string) {
 	w.timer = time.AfterFunc(3*time.Second, w.onQuiet)
 
 	_ = state.Write(w.session, w.status)
+}
+
+func (w *watcher) pushRecentBar(red bool) {
+	mark := "0"
+	if red {
+		mark = "1"
+	}
+	w.status.RecentBars += mark
+	if len(w.status.RecentBars) > recentBarLimit {
+		w.status.RecentBars = w.status.RecentBars[len(w.status.RecentBars)-recentBarLimit:]
+	}
 }
 
 func (w *watcher) onQuiet() {
@@ -238,16 +252,16 @@ func run(cmd *cobra.Command, args []string) error {
 
 		// Scan both pipes, tee to stdout/log, and notify the watcher.
 		var wg sync.WaitGroup
-		scan := func(r io.Reader, out io.Writer) {
+		scan := func(r io.Reader, out io.Writer, fromStderr bool) {
 			defer wg.Done()
-			if err := scanOutput(r, out, logFile, w.onLine); err != nil {
+			if err := scanOutput(r, out, logFile, w.onLine, fromStderr); err != nil {
 				fmt.Fprintf(logFile, "[xmux watch] output scan error: %v\n", err)
 			}
 		}
 
 		wg.Add(2)
-		go scan(stdoutPipe, os.Stdout)
-		go scan(stderrPipe, os.Stderr)
+		go scan(stdoutPipe, os.Stdout, false)
+		go scan(stderrPipe, os.Stderr, true)
 
 		// Wait for process exit in a goroutine.
 		done := make(chan error, 1)
@@ -294,14 +308,14 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func scanOutput(r io.Reader, out io.Writer, log io.Writer, onLine func(string)) error {
+func scanOutput(r io.Reader, out io.Writer, log io.Writer, onLine func(string, bool), fromStderr bool) error {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), maxScanTokenSize)
 	for scanner.Scan() {
 		line := scanner.Text()
 		fmt.Fprintln(out, line)
 		fmt.Fprintln(log, line)
-		onLine(line)
+		onLine(line, fromStderr)
 	}
 	return scanner.Err()
 }

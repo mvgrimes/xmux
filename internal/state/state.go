@@ -23,6 +23,7 @@ type Status struct {
 	State      string `json:"state"`
 	LastLine   string `json:"last_line"`
 	AlertLine  string `json:"alert_line"`
+	RecentBars string `json:"recent_bars,omitempty"`
 	PID        int    `json:"pid"`
 	WatcherPID int    `json:"watcher_pid"`
 	TS         int64  `json:"ts"`
