@@ -170,6 +170,55 @@ func TestRotatingLogWriterSingleLineLargerThanCap(t *testing.T) {
 	}
 }
 
+func TestRotatingLogWriterDoesNotRotateAtExactCap(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "svc.log")
+	w, err := newRotatingLogWriter(logPath, 7, 2, 0)
+	if err != nil {
+		t.Fatalf("newRotatingLogWriter: %v", err)
+	}
+
+	if _, err := w.Write([]byte("abc\n")); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	if _, err := w.Write([]byte("de\n")); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	if _, err := os.Stat(logPath + ".1"); !os.IsNotExist(err) {
+		t.Fatalf("expected no rotation at exact cap, stat err=%v", err)
+	}
+}
+
+func TestRotatingLogWriterPrunesAgedRotatedLogs(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "svc.log")
+	if err := os.WriteFile(logPath+".2", []byte("old"), 0644); err != nil {
+		t.Fatalf("seed rotated log: %v", err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(logPath+".2", old, old); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	w, err := newRotatingLogWriter(logPath, 4, 3, time.Hour)
+	if err != nil {
+		t.Fatalf("newRotatingLogWriter: %v", err)
+	}
+
+	if _, err := w.Write([]byte("abcd\n")); err != nil {
+		t.Fatalf("write trigger: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	if _, err := os.Stat(logPath + ".2"); !os.IsNotExist(err) {
+		t.Fatalf("expected aged rotated log to be pruned, stat err=%v", err)
+	}
+}
+
 func TestRunRejectsInvalidLogFlags(t *testing.T) {
 	t.Setenv("XMUX_SESSION", "watch-invalid-flags")
 	oldBytes, oldFiles, oldAge := logMaxBytes, logMaxFiles, logMaxAge
