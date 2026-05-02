@@ -95,7 +95,8 @@ BubbleTea TUI for the 4-column sidebar. Polls the state directory every 500 ms
 and renders stacked service icons colored by state:
 
 `--spawn` is repeatable and each value should be the exact args you'd pass to
-`xmux watch`.
+`xmux watch`. Spawned services are shown top-to-bottom in the same order as
+their `--spawn` flags.
 
 ```bash
 xmux bar \
