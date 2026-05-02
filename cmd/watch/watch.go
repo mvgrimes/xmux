@@ -22,6 +22,9 @@ import (
 )
 
 var alertPattern string
+var logMaxBytes int64 = defaultLogMaxBytes
+var logMaxFiles int = defaultLogMaxFiles
+var logMaxAge time.Duration
 
 const maxScanTokenSize = 1024 * 1024
 const recentBarLimit = 6
@@ -46,6 +49,9 @@ Example:
 		RunE:               run,
 	}
 	cmd.Flags().StringVar(&alertPattern, "alert", "", "regex pattern to trigger alert state")
+	cmd.Flags().Int64Var(&logMaxBytes, "log-max-bytes", defaultLogMaxBytes, "max bytes per active service log before rotation")
+	cmd.Flags().IntVar(&logMaxFiles, "log-max-files", defaultLogMaxFiles, "number of rotated log files to retain")
+	cmd.Flags().DurationVar(&logMaxAge, "log-max-age", 0, "max age for rotated logs (0 disables age-based pruning)")
 	return cmd
 }
 
@@ -191,11 +197,21 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Open log file (append).
+	if logMaxBytes <= 0 {
+		return fmt.Errorf("--log-max-bytes must be > 0")
+	}
+	if logMaxFiles < 1 {
+		return fmt.Errorf("--log-max-files must be >= 1")
+	}
+	if logMaxAge < 0 {
+		return fmt.Errorf("--log-max-age must be >= 0")
+	}
+
 	logPath := state.LogFile(session, name)
 	if mkErr := os.MkdirAll(state.Dir(session), 0755); mkErr != nil {
 		return mkErr
 	}
-	logFile, err := newRotatingLogWriter(logPath, defaultLogMaxBytes, defaultLogMaxFiles)
+	logFile, err := newRotatingLogWriter(logPath, logMaxBytes, logMaxFiles, logMaxAge)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
 	}
@@ -328,16 +344,20 @@ type rotatingLogWriter struct {
 	path     string
 	maxBytes int64
 	maxFiles int
+	maxAge   time.Duration
 	file     *os.File
 	size     int64
 }
 
-func newRotatingLogWriter(path string, maxBytes int64, maxFiles int) (*rotatingLogWriter, error) {
+func newRotatingLogWriter(path string, maxBytes int64, maxFiles int, maxAge time.Duration) (*rotatingLogWriter, error) {
 	if maxBytes <= 0 {
 		return nil, fmt.Errorf("maxBytes must be positive")
 	}
 	if maxFiles < 1 {
 		return nil, fmt.Errorf("maxFiles must be >= 1")
+	}
+	if maxAge < 0 {
+		return nil, fmt.Errorf("maxAge must be >= 0")
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
@@ -355,6 +375,7 @@ func newRotatingLogWriter(path string, maxBytes int64, maxFiles int) (*rotatingL
 		path:     path,
 		maxBytes: maxBytes,
 		maxFiles: maxFiles,
+		maxAge:   maxAge,
 		file:     f,
 		size:     info.Size(),
 	}, nil
@@ -410,6 +431,32 @@ func (w *rotatingLogWriter) rotate() error {
 	}
 	w.file = f
 	w.size = 0
+	if err := w.pruneByAge(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *rotatingLogWriter) pruneByAge() error {
+	if w.maxAge == 0 {
+		return nil
+	}
+	cutoff := time.Now().Add(-w.maxAge)
+	for i := 1; i <= w.maxFiles; i++ {
+		path := w.path + "." + strconv.Itoa(i)
+		info, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if info.ModTime().Before(cutoff) {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

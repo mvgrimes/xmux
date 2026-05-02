@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mvgrimes/xmux/internal/state"
 )
@@ -106,7 +107,7 @@ func TestRunWritesStartFailureToLog(t *testing.T) {
 
 func TestRotatingLogWriterRotatesAndRetainsFiles(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "svc.log")
-	w, err := newRotatingLogWriter(logPath, 16, 3)
+	w, err := newRotatingLogWriter(logPath, 16, 3, 0)
 	if err != nil {
 		t.Fatalf("newRotatingLogWriter: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestRotatingLogWriterRotatesAndRetainsFiles(t *testing.T) {
 
 func TestRotatingLogWriterSingleLineLargerThanCap(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "svc.log")
-	w, err := newRotatingLogWriter(logPath, 4, 2)
+	w, err := newRotatingLogWriter(logPath, 4, 2, 0)
 	if err != nil {
 		t.Fatalf("newRotatingLogWriter: %v", err)
 	}
@@ -166,5 +167,32 @@ func TestRotatingLogWriterSingleLineLargerThanCap(t *testing.T) {
 	}
 	if got, want := string(data), "abcdef\n"; got != want {
 		t.Fatalf("active log mismatch got %q want %q", got, want)
+	}
+}
+
+func TestRunRejectsInvalidLogFlags(t *testing.T) {
+	t.Setenv("XMUX_SESSION", "watch-invalid-flags")
+	oldBytes, oldFiles, oldAge := logMaxBytes, logMaxFiles, logMaxAge
+	t.Cleanup(func() {
+		logMaxBytes, logMaxFiles, logMaxAge = oldBytes, oldFiles, oldAge
+	})
+
+	logMaxBytes = 0
+	logMaxFiles = 3
+	logMaxAge = 0
+	if err := run(nil, []string{"svc", "echo", "ok"}); err == nil || !strings.Contains(err.Error(), "--log-max-bytes") {
+		t.Fatalf("expected log-max-bytes error, got %v", err)
+	}
+
+	logMaxBytes = 1024
+	logMaxFiles = 0
+	if err := run(nil, []string{"svc", "echo", "ok"}); err == nil || !strings.Contains(err.Error(), "--log-max-files") {
+		t.Fatalf("expected log-max-files error, got %v", err)
+	}
+
+	logMaxFiles = 3
+	logMaxAge = -time.Second
+	if err := run(nil, []string{"svc", "echo", "ok"}); err == nil || !strings.Contains(err.Error(), "--log-max-age") {
+		t.Fatalf("expected log-max-age error, got %v", err)
 	}
 }
