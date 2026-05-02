@@ -99,11 +99,19 @@ func TestCleanupSpawnedLogsRemovesOnlyMatchingWatcherLogs(t *testing.T) {
 
 	devLog := state.LogFile(session, "dev")
 	apiLog := state.LogFile(session, "api")
+	devRotated := devLog + ".1"
+	apiRotated := apiLog + ".1"
 	if err := os.WriteFile(devLog, []byte("dev logs"), 0644); err != nil {
 		t.Fatalf("write dev log: %v", err)
 	}
+	if err := os.WriteFile(devRotated, []byte("dev logs old"), 0644); err != nil {
+		t.Fatalf("write dev rotated log: %v", err)
+	}
 	if err := os.WriteFile(apiLog, []byte("api logs"), 0644); err != nil {
 		t.Fatalf("write api log: %v", err)
+	}
+	if err := os.WriteFile(apiRotated, []byte("api logs old"), 0644); err != nil {
+		t.Fatalf("write api rotated log: %v", err)
 	}
 
 	cmds := []*exec.Cmd{{Process: &os.Process{Pid: 111}}}
@@ -114,8 +122,14 @@ func TestCleanupSpawnedLogsRemovesOnlyMatchingWatcherLogs(t *testing.T) {
 	if _, err := os.Stat(devLog); !os.IsNotExist(err) {
 		t.Fatalf("expected dev log removed, stat err=%v", err)
 	}
+	if _, err := os.Stat(devRotated); !os.IsNotExist(err) {
+		t.Fatalf("expected dev rotated log removed, stat err=%v", err)
+	}
 	if _, err := os.Stat(apiLog); err != nil {
 		t.Fatalf("expected api log to remain, stat err=%v", err)
+	}
+	if _, err := os.Stat(apiRotated); err != nil {
+		t.Fatalf("expected api rotated log to remain, stat err=%v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(state.Dir(session), "dev.json")); err != nil {

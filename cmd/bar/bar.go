@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
@@ -179,9 +180,16 @@ func cleanupSpawnedLogs(session string, cmds []*exec.Cmd) error {
 		if _, ok := pids[svc.WatcherPID]; !ok {
 			continue
 		}
-		err := os.Remove(state.LogFile(session, svc.Name))
-		if err != nil && !os.IsNotExist(err) {
+		paths, err := filepath.Glob(state.LogFile(session, svc.Name) + "*")
+		if err != nil {
 			cleanupErr = errors.Join(cleanupErr, err)
+			continue
+		}
+		for _, path := range paths {
+			err := os.Remove(path)
+			if err != nil && !os.IsNotExist(err) {
+				cleanupErr = errors.Join(cleanupErr, err)
+			}
 		}
 	}
 	return cleanupErr
