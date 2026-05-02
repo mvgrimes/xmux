@@ -71,8 +71,20 @@ tmux split-window -h -l 4 'xmux bar'
 #### `xmux watch <name> <icon> [--alert <regex>] -- <command...>`
 
 Wraps a background process. Writes status JSON to
-`~/.local/state/xmux/<session>/<name>.json` and a log to
-`~/.local/state/xmux/<session>/<name>.log`.
+`~/.local/state/xmux/<session>/<name>.json` and logs to
+`~/.local/state/xmux/<session>/<name>.log` with default rotation.
+
+Default log retention policy:
+
+- `--log-max-bytes=5242880` (5 MB per active log file)
+- `--log-max-files=3` (retains `.log.1` to `.log.3`)
+- `--log-max-age=0` (disabled; no age-based pruning)
+
+Override policy per watcher:
+
+```bash
+xmux watch dev --log-max-bytes 10485760 --log-max-files 5 --log-max-age 24h -- npm run dev
+```
 
 State transitions: `starting` → `running` → `activity` (on output) →
 `running` (3 s of silence) → `alert` (regex match, sticky).
@@ -87,7 +99,7 @@ and renders stacked service icons colored by state:
 
 ```bash
 xmux bar \
-  --spawn "dev 󰎙 --alert 'error|Error|failed' -- npm run dev" \
+  --spawn "dev 󰎙 --alert 'error|Error|failed' --log-max-bytes 10485760 -- npm run dev" \
   --spawn "gen --alert 'error' -- npm run codegen --watch"
 ```
 
