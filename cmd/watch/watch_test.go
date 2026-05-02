@@ -2,6 +2,7 @@ package watch
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,5 +101,70 @@ func TestRunWritesStartFailureToLog(t *testing.T) {
 	}
 	if !strings.Contains(string(statusData), `"state":"exited"`) {
 		t.Fatalf("expected exited state after start failure, got: %q", string(statusData))
+	}
+}
+
+func TestRotatingLogWriterRotatesAndRetainsFiles(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "svc.log")
+	w, err := newRotatingLogWriter(logPath, 16, 3)
+	if err != nil {
+		t.Fatalf("newRotatingLogWriter: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = w.Close()
+	})
+
+	for i := 1; i <= 8; i++ {
+		if _, err := fmt.Fprintf(w, "line-%d\n", i); err != nil {
+			t.Fatalf("write %d: %v", i, err)
+		}
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	mustContain := func(path, want string) {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("%s does not contain %q; got %q", path, want, string(data))
+		}
+	}
+
+	mustContain(logPath, "line-7")
+	mustContain(logPath, "line-8")
+	mustContain(logPath+".1", "line-5")
+	mustContain(logPath+".2", "line-3")
+	mustContain(logPath+".3", "line-1")
+
+	if _, err := os.Stat(logPath + ".4"); !os.IsNotExist(err) {
+		t.Fatalf("expected no .4 file, stat err: %v", err)
+	}
+}
+
+func TestRotatingLogWriterSingleLineLargerThanCap(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "svc.log")
+	w, err := newRotatingLogWriter(logPath, 4, 2)
+	if err != nil {
+		t.Fatalf("newRotatingLogWriter: %v", err)
+	}
+
+	if _, err := w.Write([]byte("abcdef\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read active log: %v", err)
+	}
+	if got, want := string(data), "abcdef\n"; got != want {
+		t.Fatalf("active log mismatch got %q want %q", got, want)
 	}
 }

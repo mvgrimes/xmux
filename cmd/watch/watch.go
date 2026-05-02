@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,6 +25,8 @@ var alertPattern string
 
 const maxScanTokenSize = 1024 * 1024
 const recentBarLimit = 6
+const defaultLogMaxBytes = 5 * 1024 * 1024
+const defaultLogMaxFiles = 3
 
 // NewCommand returns the cobra command for `xmux watch`.
 func NewCommand() *cobra.Command {
@@ -192,7 +195,7 @@ func run(cmd *cobra.Command, args []string) error {
 	if mkErr := os.MkdirAll(state.Dir(session), 0755); mkErr != nil {
 		return mkErr
 	}
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	logFile, err := newRotatingLogWriter(logPath, defaultLogMaxBytes, defaultLogMaxFiles)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
 	}
@@ -318,6 +321,96 @@ func scanOutput(r io.Reader, out io.Writer, log io.Writer, onLine func(string, b
 		onLine(line, fromStderr)
 	}
 	return scanner.Err()
+}
+
+type rotatingLogWriter struct {
+	mu       sync.Mutex
+	path     string
+	maxBytes int64
+	maxFiles int
+	file     *os.File
+	size     int64
+}
+
+func newRotatingLogWriter(path string, maxBytes int64, maxFiles int) (*rotatingLogWriter, error) {
+	if maxBytes <= 0 {
+		return nil, fmt.Errorf("maxBytes must be positive")
+	}
+	if maxFiles < 1 {
+		return nil, fmt.Errorf("maxFiles must be >= 1")
+	}
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+
+	return &rotatingLogWriter{
+		path:     path,
+		maxBytes: maxBytes,
+		maxFiles: maxFiles,
+		file:     f,
+		size:     info.Size(),
+	}, nil
+}
+
+func (w *rotatingLogWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.size+int64(len(p)) > w.maxBytes {
+		if err := w.rotate(); err != nil {
+			return 0, err
+		}
+	}
+
+	n, err := w.file.Write(p)
+	w.size += int64(n)
+	return n, err
+}
+
+func (w *rotatingLogWriter) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.file == nil {
+		return nil
+	}
+	err := w.file.Close()
+	w.file = nil
+	return err
+}
+
+func (w *rotatingLogWriter) rotate() error {
+	if w.file != nil {
+		if err := w.file.Close(); err != nil {
+			return err
+		}
+	}
+
+	for i := w.maxFiles; i >= 1; i-- {
+		src := w.path
+		if i > 1 {
+			src = w.path + "." + strconv.Itoa(i-1)
+		}
+		dst := w.path + "." + strconv.Itoa(i)
+		if err := os.Rename(src, dst); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	f, err := os.OpenFile(w.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	w.file = f
+	w.size = 0
+	return nil
 }
 
 func resolveSession() (string, error) {
