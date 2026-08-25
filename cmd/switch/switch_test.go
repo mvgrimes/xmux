@@ -6,6 +6,33 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func TestTmuxSessionTarget(t *testing.T) {
+	tests := []struct {
+		name    string
+		session string
+		want    string
+	}{
+		{
+			name:    "plain session",
+			session: "xen-bal01",
+			want:    "xen-bal01:",
+		},
+		{
+			name:    "dotted session",
+			session: "xen-bal01.neb.mccwk.com",
+			want:    "xen-bal01.neb.mccwk.com:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tmuxSessionTarget(tt.session); got != tt.want {
+				t.Fatalf("tmuxSessionTarget(%q) = %q, want %q", tt.session, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdateDeletesFilterInput(t *testing.T) {
 	tests := []struct {
 		name   string

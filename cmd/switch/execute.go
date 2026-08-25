@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 func executeTmux(action stage, session string) {
@@ -12,7 +11,7 @@ func executeTmux(action stage, session string) {
 
 	switch action {
 	case liveSession:
-		err = exec.Command("tmux", "switch-client", "-t", session).Run()
+		err = exec.Command("tmux", "switch-client", "-t", tmuxSessionTarget(session)).Run()
 
 	case inactiveSession:
 		err = exec.Command("tmux", "run-shell", fmt.Sprintf("tmuxinator start %s", session)).Run()
@@ -20,12 +19,15 @@ func executeTmux(action stage, session string) {
 	case remoteSession:
 		exec.Command("tmux", "new", "-d", "-s", session, fmt.Sprintf("$HOME/bin/smux %s", session)).Run()
 
-		cleanSession := strings.Replace(session, ".", "_", -1)
-		err = exec.Command("tmux", "switch-client", "-t", cleanSession).Run()
+		err = exec.Command("tmux", "switch-client", "-t", tmuxSessionTarget(session)).Run()
 	}
 
 	if err != nil {
 		fmt.Println("Error running:", err)
 		os.Exit(1)
 	}
+}
+
+func tmuxSessionTarget(session string) string {
+	return session + ":"
 }
