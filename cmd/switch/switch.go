@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -120,8 +121,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			executeTmux(m.focused, m.choice)
 			return m, tea.Quit
 		case "backspace", "delete":
-			end := utils.Max(0, len(m.filter)-1)
-			m.filter = m.filter[0:end]
+			m.filter = trimLastRune(m.filter)
+			m.CurrentList().SetFilter(m.filter).Filter()
+		case "ctrl+h", "ctrl+w", "alt+backspace":
+			m.filter = trimLastWord(m.filter)
 			m.CurrentList().SetFilter(m.filter).Filter()
 
 		default:
@@ -134,6 +137,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func trimLastRune(s string) string {
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return s
+	}
+	return string(runes[:len(runes)-1])
+}
+
+func trimLastWord(s string) string {
+	runes := []rune(s)
+	end := len(runes)
+	for end > 0 && !unicode.IsLetter(runes[end-1]) && !unicode.IsNumber(runes[end-1]) {
+		end--
+	}
+	for end > 0 && (unicode.IsLetter(runes[end-1]) || unicode.IsNumber(runes[end-1])) {
+		end--
+	}
+	return string(runes[:end])
 }
 
 type activeSessionsMsg []string
